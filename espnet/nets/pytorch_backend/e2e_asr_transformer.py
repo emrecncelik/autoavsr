@@ -306,7 +306,7 @@ class E2E(torch.nn.Module):
         :return: encoder outputs
         :rtype: torch.Tensor
         """
-        self.eval()
+        # self.eval()
         x = torch.as_tensor(x).unsqueeze(0)
         if extract_resnet_feats:
             resnet_feats = self.encoder(
