@@ -35,19 +35,13 @@ class BatchBeamSearch(BeamSearch):
         """Convert list to batch."""
         if len(hyps) == 0:
             return BatchHypothesis()
-        yseq = pad_sequence(
-            [h.yseq for h in hyps], batch_first=True, padding_value=self.eos
-        )
         return BatchHypothesis(
-            yseq=yseq,
-            length=torch.tensor(
-                [len(h.yseq) for h in hyps], dtype=torch.int64, device=yseq.device
+            yseq=pad_sequence(
+                [h.yseq for h in hyps], batch_first=True, padding_value=self.eos
             ),
-            score=torch.tensor([h.score for h in hyps]).to(yseq.device),
-            scores={
-                k: torch.tensor([h.scores[k] for h in hyps], device=yseq.device)
-                for k in self.scorers
-            },
+            length=torch.tensor([len(h.yseq) for h in hyps], dtype=torch.int64),
+            score=torch.tensor([h.score for h in hyps]),
+            scores={k: torch.tensor([h.scores[k] for h in hyps]) for k in self.scorers},
             states={k: [h.states[k] for h in hyps] for k in self.scorers},
         )
 
@@ -293,6 +287,7 @@ class BatchBeamSearch(BeamSearch):
         self,
         i: int,
         maxlen: int,
+        minlen: int,
         maxlenratio: float,
         running_hyps: BatchHypothesis,
         ended_hyps: List[Hypothesis],
@@ -349,6 +344,7 @@ class BatchBeamSearch(BeamSearch):
         )
         for b in torch.nonzero(is_eos, as_tuple=False).view(-1):
             hyp = self._select(running_hyps, b)
-            ended_hyps.append(hyp)
-        remained_ids = torch.nonzero(is_eos == 0, as_tuple=False).view(-1)
+            if i >= minlen:
+                ended_hyps.append(hyp)
+        remained_ids = torch.nonzero(is_eos == 0, as_tuple=False).view(-1).cpu()
         return self._batch_select(running_hyps, remained_ids)
